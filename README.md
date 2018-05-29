@@ -1,7 +1,7 @@
 # nfp400_traffic_foward
 A basic traffic fowarding applicaion for the NFP 400 2x10GE network card.
 
-This repository is based on the c_packetprocessing repository (github.com/open-nfpsw/c_packetprocessing) and contains the same directory structure and build scripts.
+This repository is based on the c_packetprocessing repository (https://github.com/open-nfpsw/c_packetprocessing) and contains the same directory structure and build scripts.
 
 # Structure
 
