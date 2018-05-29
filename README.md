@@ -32,12 +32,13 @@ This is largely based on your physical setup. As an example setup, assuming a de
 
 - Use tshark on the test host(s) to record traffic being passed over an interface.
   ```
-  > sudo tshark -x -i INTERFACE_NAME
+  > sudo tshark -x -i eth0
   ```
 
 - Use tcpreplay to replay traffic recored in pcap file over the interface:
   ```
-  > sudo tcpreplay --intf1=eth1 single_pkt.pcap
+  > sudo tcpreplay --intf1=eth0 sample.pcap
   ```
+- For every packet sent, the tshark instance should record two copies of the packet (the egress packet and the reflected packet)
  
 sample captures can be found online (https://wiki.wireshark.org/SampleCaptures) (http://packetlife.net/captures/)

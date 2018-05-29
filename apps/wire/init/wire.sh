@@ -25,7 +25,7 @@ export LD_LIBRARY_PATH=${NFP_SDK_DIR}/lib:$LD_LIBRARY_PATH
 
 CONFIG_DIR=$(dirname $0)
 PREPEND_0=17
-OUTPUT=/dev/null
+OUTPUT=log.log
 
 Usage() {
         echo
@@ -99,14 +99,14 @@ case "$1" in
         # NBI MAC init
         echo -n " - Init MAC for SF..."
         nfp-macinit \
-            -0 ${CONFIG_DIR}/sf1-2x1GE.2.json \
+            -0 ${CONFIG_DIR}/sf1-2x1GE.json \
             -p ${NFP_SDK_DIR}/share/nbi/nfp_nbi_phy_tuning_AMDA0096R1.json -m0 \
             &> $OUTPUT || exit 1
         nfp -m mac -e set port rx 0 0 enable &> $OUTPUT || exit 1
         nfp -m mac -e set port rx 0 4 enable &> $OUTPUT || exit 1
 
-        nfp -n $CARD -m mac set port ifup 0 0 &> $OUTPUT || exit 1
-        nfp -n $CARD -m mac set port ifup 0 4 &> $OUTPUT || exit 1
+        nfp -n 0 -m mac set port ifup 0 0 &> $OUTPUT || exit 1
+        nfp -n 0 -m mac set port ifup 0 4 &> $OUTPUT || exit 1
 
         echo "done"
 
