@@ -1,0 +1,201 @@
+#include <assert.h>
+#include <nfp.h>
+
+#include <nfp6000/nfp_pcie.h>
+#include <nfp6000/nfp_me.h>
+#include <nfp/pcie.h>
+#include <nfp/dma.h>
+
+__gpr volatile struct dma_descriptor descriptor;
+__gpr volatile unsigned int dma_entry_addr_hi;
+__gpr volatile unsigned int dma_entry_addr_lo;
+__gpr volatile unsigned int message_offset;
+
+void dma_write_init() {
+  __xwrite volatile unsigned int configuration;
+  __xread  volatile unsigned int pcie_read[2];
+
+  SIGNAL dma_sig;
+
+  //the offset we must add to the base address.
+  message_offset = __ctx()*DMA_BUFFER_SIZE_WORDS;
+
+  dma_entry_addr_hi = NFP_PCIE_ISLAND << 30;
+  dma_entry_addr_lo = NFP_DESCRIPTOR_CFG0;
+  //----------------------------------------------------------------------------
+  //Setup config descriptor for DMA transfer. Nothing special except tell it we
+  //are reading the from the CTM.
+  //----------------------------------------------------------------------------
+
+  configuration = (0xF << 16)|0xF;
+  __asm
+  {
+  pcie[write_int,  configuration, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  1], sig_done[dma_sig]
+  ctx_arb[dma_sig]
+  }
+
+  //----------------------------------------------------------------------------
+  //Next we setup the DMA descriptor. Insert where in the CLS to find the data to
+  //be transmitted and where in RAM to send it.
+  //----------------------------------------------------------------------------
+
+  descriptor.cpp_addr_lo   = 0;
+  descriptor.cpp_addr_hi   = 0;
+  descriptor.dma_cfg_index = 0;
+  descriptor.cpp_token     = 0;
+  descriptor.dma_mode      = 0;
+  descriptor.mode_sel      = 0;
+  descriptor.pcie_addr_lo  = 0;
+  descriptor.pcie_addr_hi  = 0;
+  descriptor.trans_class   = 0;
+  descriptor.rid_override  = 0;
+  descriptor.rid           = 0;
+  descriptor.length        = 0;
+  //----------------------------------------------------------------------------
+  //Now fetch the DMA base address from  SRAM
+  //----------------------------------------------------------------------------
+  dma_entry_addr_lo = NFP_DMA_ADDRESS_BASE;
+  __asm
+  {
+    pcie[read_int,  pcie_read, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  2], sig_done[dma_sig]
+    ctx_arb[dma_sig]
+  }
+  descriptor.pcie_addr_lo  = pcie_read[1] + message_offset;
+  descriptor.pcie_addr_hi  = pcie_read[0] & 0xFF;
+  //check for overflow
+  if(descriptor.pcie_addr_lo < message_offset) {
+    descriptor.pcie_addr_hi += 1;
+  }
+
+  //----------------------------------------------------------------------------
+  //leave lo address pointing to the descriptor we whish to use
+  dma_entry_addr_lo = NFP_PCIE_DMA_CONTROLER+NFP_PCIE_WRITE_DESCRIPTOR_OFFEST;
+}
+
+void dma_read_init(unsigned int sync_signal) {
+  __xwrite volatile unsigned int configuration;
+  __xread  volatile unsigned int pcie_read[2];
+  __gpr    unsigned int message_offset;
+  __declspec(cls) unsigned int host_signal;
+  SIGNAL dma_sig;
+
+  //the offset we must add to the base address.
+  message_offset = sizeof(struct dma_message)*(__ctx() + 8);
+  host_signal = sync_signal; //will write this into the DMA buffer
+  dma_entry_addr_hi = NFP_PCIE_ISLAND << 30;
+  dma_entry_addr_lo = NFP_DESCRIPTOR_CFG0;
+  //----------------------------------------------------------------------------
+  //Setup config descriptor for DMA transfer. Nothing special except tell it we
+  //are reading the from the CLS.
+  //----------------------------------------------------------------------------
+
+  configuration = (0xF << 16)|0xF;
+  __asm
+  {
+  pcie[write_int,  configuration, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  1], sig_done[dma_sig]
+  ctx_arb[dma_sig]
+  }
+
+  //----------------------------------------------------------------------------
+  //Next we setup the DMA descriptor. Insert where in the CLS to find the data to
+  //be transmitted and where in RAM to send it.
+  //----------------------------------------------------------------------------
+
+  descriptor.cpp_addr_lo   = 0;
+  descriptor.cpp_addr_hi   = 0;
+  descriptor.dma_cfg_index = 0;
+  descriptor.cpp_token     = 0;
+  descriptor.dma_mode      = 0;
+  descriptor.mode_sel      = 0;
+  descriptor.pcie_addr_lo  = 0;
+  descriptor.pcie_addr_hi  = 0;
+  descriptor.trans_class   = 0;
+  descriptor.rid_override  = 0;
+  descriptor.rid           = 0;
+  descriptor.length        = 0;
+  //----------------------------------------------------------------------------
+  //Now fetch the DMA abse address from  SRAM
+  //----------------------------------------------------------------------------
+  dma_entry_addr_lo = NFP_DMA_ADDRESS_BASE; //find context specific memory block
+  __asm
+  {
+    pcie[read_int,  pcie_read, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  2], sig_done[dma_sig]
+    ctx_arb[dma_sig]
+  }
+  descriptor.pcie_addr_lo  = pcie_read[1] + message_offset;
+  descriptor.pcie_addr_hi  = pcie_read[0] & 0xFF;
+  //check for overflow
+  if(descriptor.pcie_addr_lo < message_offset) {
+    descriptor.pcie_addr_hi += 1;
+  }
+  //----------------------------------------------------------------------------
+  //leave lo address pointing to the descriptor we whish to use
+  dma_entry_addr_lo = NFP_PCIE_DMA_CONTROLER+NFP_PCIE_READ_DESCRIPTOR_OFFEST;
+  //finially, write the host signal number into the buffer for the driver to use
+  dma_write((unsigned int)&host_signal, 4);
+  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+}
+
+void dma_write(unsigned int message, unsigned int size) {
+  __xwrite volatile struct dma_descriptor desc;
+  SIGNAL dma_sig, dma_ack;
+  //----------------------------------------------------------------------------
+  //Issue the DMA transfer
+  descriptor.cpp_addr_lo   = message;
+  descriptor.length        = size;
+  descriptor.mode_sel      = 0;
+
+  descriptor.dma_mode =  ((__MEID & 0xF) << 13) | (((__MEID >> 4) & 0x3F) << 7);
+  descriptor.dma_mode |= ((ctx() & 0x7) << 4);
+  descriptor.dma_mode |= __signal_number(&dma_ack);
+
+  desc = descriptor;
+  dma_entry_addr_lo = NFP_PCIE_DMA_CONTROLER+NFP_PCIE_WRITE_DESCRIPTOR_OFFEST;
+  __asm
+  {
+    pcie[write_pci,  desc, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  4], sig_done[dma_sig]
+  }
+  wait_for_all(&dma_sig, &dma_ack);
+}
+//------------------------------------------------------------------------------
+void dma_read(unsigned int message) {
+  __xwrite volatile struct dma_descriptor desc;
+  SIGNAL dma_sig, dma_ack;
+  //----------------------------------------------------------------------------
+  //Issue the DMA read transfer
+  descriptor.cpp_addr_lo   = message;
+  descriptor.length        = sizeof(struct dma_message)-1;//87;//lets just use a low number for now [64 byte payload size, 48 byte header]//396; //512-(TLP header [16 bytes]) TODO: optimise this later. Make dynamic?
+  descriptor.mode_sel      = 0;
+
+  descriptor.dma_mode  = ((__MEID & 0xF) << 13) | (((__MEID >> 4) & 0x3F) << 7);
+  descriptor.dma_mode |= ((ctx() & 0x7) << 4);
+  descriptor.dma_mode |= __signal_number(&dma_ack);
+
+  desc = descriptor;
+  dma_entry_addr_lo = NFP_PCIE_DMA_CONTROLER+NFP_PCIE_READ_DESCRIPTOR_OFFEST;
+
+  __asm
+  {
+    pcie[write_pci, desc, dma_entry_addr_hi, << 8 , dma_entry_addr_lo,  4], sig_done[dma_sig]
+  }
+  wait_for_all(&dma_sig, &dma_ack);
+
+}
+//------------------------------------------------------------------------------
+void dma_clear_size() {
+  //setup and backup PCIe addresses for the clear operation
+  __declspec(cls) volatile unsigned int clear_size = 0;
+  unsigned int t_pcie_addr_lo = descriptor.pcie_addr_lo;
+  unsigned int t_pcie_addr_hi = descriptor.pcie_addr_hi;
+  descriptor.pcie_addr_lo  += 4;
+  //check for overflow
+  if(descriptor.pcie_addr_lo < message_offset) {
+    descriptor.pcie_addr_hi += 1;
+  }
+  //clear the size field
+  dma_write((unsigned int)&clear_size, 4);
+  //reset all addresses to their origional values.
+  descriptor.pcie_addr_lo = t_pcie_addr_lo;
+  descriptor.pcie_addr_hi = t_pcie_addr_hi;
+}
