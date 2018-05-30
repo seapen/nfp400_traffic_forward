@@ -56,17 +56,16 @@ $(eval $(call microcode.add_flags,blm_obj,-I$(microc_blocks_dir)/blm/_uc))
 # Application definition
 #
 
-$(eval $(call micro_c.add_fw_libs,wire_obj, nfp pkt std net))
-$(eval $(call micro_c.compile_with_rtl,wire_obj,wire.c))
-$(eval $(call micro_c.add_src_lib,wire_obj,libc,$(NFP_STD_LIB)/microc/src))
-$(eval $(call micro_c.add_src_lib,wire_obj,intrinsic,$(NFP_STD_LIB)/microc/src))
-$(eval $(call micro_c.force_include,wire_obj,config))
-$(eval $(call fw.add_obj,wire,wire_obj,i32.me0 i32.me1))
-$(eval $(call fw.add_obj,wire,wire_obj,i33.me0 i33.me1))
+$(eval $(call micro_c.add_fw_libs,reflector_obj, nfp pkt std net))
+$(eval $(call micro_c.compile_with_rtl,reflector_obj,reflector.c))
+$(eval $(call micro_c.add_src_lib,reflector_obj,libc,$(NFP_STD_LIB)/microc/src))
+$(eval $(call micro_c.add_src_lib,reflector_obj,intrinsic,$(NFP_STD_LIB)/microc/src))
+$(eval $(call micro_c.force_include,reflector_obj,config))
+$(eval $(call fw.add_obj,reflector,reflector_obj,i32.me0 i32.me1))
 
-$(eval $(call fw.add_obj,wire,blm_obj,i48.me0))
-$(eval $(call fw.link_with_rtsyms,wire))
-$(eval $(call fw.add_ppc,wire,i8,$(PICO_CODE)))
+$(eval $(call fw.add_obj,reflector,blm_obj,i48.me0))
+$(eval $(call fw.link_with_rtsyms,reflector))
+$(eval $(call fw.add_ppc,reflector,i8,$(PICO_CODE)))
 
 #
 # Debug

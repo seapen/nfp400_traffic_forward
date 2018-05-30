@@ -70,25 +70,19 @@
             "mac_addr": "00:00:00:00:00:00"
         },
         "1": {
-            "enabled": true,
-            "channel_base": 8,
-            "num_channels": 8,
-            "untagged_chan": 8,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "2": {
-            "enabled": true,
-            "channel_base": 16,
-            "num_channels": 8,
-            "untagged_chan": 16,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "3": {
-            "enabled": true,
-            "channel_base": 24,
-            "num_channels": 8,
-            "untagged_chan": 24,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "4": {
             "enabled": true,
@@ -98,25 +92,19 @@
             "mac_addr": "00:00:00:00:00:00"
         },
         "5": {
-            "enabled": true,
-            "channel_base": 40,
-            "num_channels": 8,
-            "untagged_chan": 40,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "6": {
-            "enabled": true,
-            "channel_base": 48,
-            "num_channels": 8,
-            "untagged_chan": 48,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "7": {
-            "enabled": true,
-            "channel_base": 56,
-            "num_channels": 8,
-            "untagged_chan": 56,
-            "mac_addr": "00:00:00:00:00:00"
+            "enabled": false,
+            "num_channels": 0,
+            "lane_mode": "OFF"
         },
         "8": {
             "enabled": false,
